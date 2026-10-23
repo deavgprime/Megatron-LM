@@ -387,7 +387,13 @@ def _ddp_wrap(
             DP is FullyShardedDataParallel or DP is FullyShardedDataParallelV2
         ) and ddp_config.megatron_fsdp_version == 2
         construction_context = (
-            fully_shard_context(runtime_policy=RuntimePolicy(use_symmetric_memory=ddp_config.nccl_ub, caller_managed_grad_sync=True, overlap_outer_communication=ddp_config.overlap_outer_communication))
+            fully_shard_context(
+                runtime_policy=RuntimePolicy(
+                    use_symmetric_memory=ddp_config.nccl_ub,
+                    caller_managed_grad_sync=True,
+                    overlap_outer_communication=ddp_config.overlap_outer_communication,
+                )
+            )
             if is_mfsdp_v2
             else nullcontext()
         )

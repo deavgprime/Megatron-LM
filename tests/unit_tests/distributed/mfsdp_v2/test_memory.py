@@ -150,7 +150,10 @@ def test_training_step_peak_memory_bounds_full_size_buffers(
     model = MultiChildModel(dim=dim, num_children=8).to(dtype=dtype)
     placements = _default_placements()
     policy = MixedPrecisionPolicy(main_params_dtype=dtype, main_grads_dtype=dtype)
-    with fully_shard_context(device=device, runtime_policy=RuntimePolicy(overlap_allgather_reduction=overlap_allgather_reduction)):
+    with fully_shard_context(
+        device=device,
+        runtime_policy=RuntimePolicy(overlap_allgather_reduction=overlap_allgather_reduction),
+    ):
         for layer in model.layers:
             fully_shard(layer, mesh=mesh, placements=placements, mixed_precision_policy=policy)
         fully_shard(model, mesh=mesh, placements=placements, mixed_precision_policy=policy)

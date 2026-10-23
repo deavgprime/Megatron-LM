@@ -140,7 +140,13 @@ def test_overlaps_communication_and_compute(
     mesh = DeviceMesh.from_group(dp_group, device.type)
     model = MultiChildModel(dim=dim, num_children=num_children).to(device=device, dtype=dtype)
     policy = MixedPrecisionPolicy(main_params_dtype=dtype, main_grads_dtype=dtype)
-    with fully_shard_context(device=device, runtime_policy=RuntimePolicy(use_symmetric_memory=use_symmetric_memory, overlap_allgather_reduction=overlap_allgather_reduction)) as context:
+    with fully_shard_context(
+        device=device,
+        runtime_policy=RuntimePolicy(
+            use_symmetric_memory=use_symmetric_memory,
+            overlap_allgather_reduction=overlap_allgather_reduction,
+        ),
+    ) as context:
         for layer in model.layers:
             fully_shard(layer, mesh=mesh, placements=placements, mixed_precision_policy=policy)
 

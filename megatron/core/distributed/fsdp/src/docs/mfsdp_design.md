@@ -274,7 +274,7 @@ with fully_shard_context(
     device=device,
     runtime_policy=RuntimePolicy(
         use_symmetric_memory=True,
-        unify_communication_stream=True,
+        overlap_allgather_reduction=False,
         caller_managed_grad_sync=True,
     ),
 ) as context:
@@ -282,7 +282,8 @@ with fully_shard_context(
 ```
 
 `device` and the construction-only `parameter_to_owner` map remain separate
-arguments. All runtime-policy flags default to `False`. When the caller manages
+arguments. Runtime-policy flags default to `False`, except
+`overlap_allgather_reduction`, which defaults to `True`. When the caller manages
 gradient synchronization, call `context.finish_grad_sync()` after all backward
 work and before consuming gradients.
 
