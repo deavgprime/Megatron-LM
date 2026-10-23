@@ -704,13 +704,7 @@ class FullyShardedDataParallelV2(_BaseDataParallel):
         # after the schedule completes, including delayed wgrad and custom 1F1B work.
         active_context = current_fully_shard_context()
         if active_context is None:
-            construction_context = fully_shard_context(
-                device=device,
-                runtime_policy=RuntimePolicy(
-                    use_symmetric_memory=ddp_config.nccl_ub, caller_managed_grad_sync=True
-                ),
-                overlap_outer_communication=ddp_config.overlap_outer_communication,
-            )
+            construction_context = fully_shard_context(device=device, runtime_policy=RuntimePolicy(use_symmetric_memory=ddp_config.nccl_ub, caller_managed_grad_sync=True, overlap_outer_communication=ddp_config.overlap_outer_communication))
         else:
             if not active_context.caller_managed_grad_sync:
                 raise ValueError(

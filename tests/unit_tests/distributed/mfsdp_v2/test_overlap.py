@@ -89,10 +89,10 @@ _GEMM_OP_NAME_SUBSTRING = "aten::mm"
     ids=["default", "symmetric_memory"],
 )
 @pytest.mark.parametrize(
-    "unify_communication_stream", [False, True], ids=["separate_streams", "unified_stream"]
+    "overlap_allgather_reduction", [True, False], ids=["separate_streams", "unified_stream"]
 )
 def test_overlaps_communication_and_compute(
-    distributed_setup, placements_factory, use_symmetric_memory, unify_communication_stream
+    distributed_setup, placements_factory, use_symmetric_memory, overlap_allgather_reduction
 ):
     """ZeRO-1/2/3 communication should overlap GEMM compute."""
     world_size = distributed_setup.world_size
@@ -140,13 +140,7 @@ def test_overlaps_communication_and_compute(
     mesh = DeviceMesh.from_group(dp_group, device.type)
     model = MultiChildModel(dim=dim, num_children=num_children).to(device=device, dtype=dtype)
     policy = MixedPrecisionPolicy(main_params_dtype=dtype, main_grads_dtype=dtype)
-    with fully_shard_context(
-        device=device,
-        runtime_policy=RuntimePolicy(
-            use_symmetric_memory=use_symmetric_memory,
-            unify_communication_stream=unify_communication_stream,
-        ),
-    ) as context:
+    with fully_shard_context(device=device, runtime_policy=RuntimePolicy(use_symmetric_memory=use_symmetric_memory, overlap_allgather_reduction=overlap_allgather_reduction)) as context:
         for layer in model.layers:
             fully_shard(layer, mesh=mesh, placements=placements, mixed_precision_policy=policy)
 
@@ -226,7 +220,7 @@ def test_overlaps_communication_and_compute(
     gemm_streams = {event.device_resource_id for event in gemm_events}
     if allgather_events:
         assert len(allgather_streams) == 1
-        if unify_communication_stream:
+        if not overlap_allgather_reduction:
             assert allgather_streams == reduce_scatter_streams
         else:
             assert allgather_streams.isdisjoint(reduce_scatter_streams)
