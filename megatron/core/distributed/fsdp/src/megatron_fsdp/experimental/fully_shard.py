@@ -27,7 +27,7 @@ from ..mixed_precision import MixedPrecisionPolicy
 from .context import FsdpContext, current_fully_shard_context
 from .module import FsdpModule
 from .placement import ShardLayout
-from .schedule import SchedulePolicy
+from .schedule_policy import SchedulePolicy
 
 # TODO(wujingyue): Separate fully_shard_context from FsdpContext in a follow-up PR.
 # Scope management and shared runtime state are separate responsibilities (SRP):
