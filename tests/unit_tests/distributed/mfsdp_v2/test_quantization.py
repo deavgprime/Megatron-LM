@@ -351,10 +351,10 @@ def test_mxfp8_unshard_gathers_rowwise_for_forward_and_columnwise_for_backward(d
 @pytest.mark.parametrize("placements", _MXFP8_PLACEMENTS)
 @pytest.mark.parametrize("use_reentrant", [False, True], ids=["non_reentrant", "reentrant"])
 @pytest.mark.parametrize(
-    "unshard_rowwise_in_backward", [False, True], ids=["on_demand", "rowwise_in_backward"]
+    "unshard_all_planes_in_backward", [False, True], ids=["on_demand", "all_planes_in_backward"]
 )
 def test_mxfp8_activation_recompute_matches_no_recompute(
-    distributed_setup, use_reentrant, placements, unshard_rowwise_in_backward
+    distributed_setup, use_reentrant, placements, unshard_all_planes_in_backward
 ):
     """Recomputation regathers rowwise planes in backward without changing numerics."""
     device = distributed_setup.device
@@ -363,7 +363,7 @@ def test_mxfp8_activation_recompute_matches_no_recompute(
 
     recipe = MXFP8BlockScaling()
     mesh = init_device_mesh(device.type, (distributed_setup.world_size,))
-    policy = SchedulePolicy(unshard_rowwise_in_backward=unshard_rowwise_in_backward)
+    policy = SchedulePolicy(unshard_all_planes_in_backward=unshard_all_planes_in_backward)
 
     def build(use_reentrant):
         with te.quantized_model_init(recipe=recipe, preserve_high_precision_init_val=True):
@@ -384,10 +384,10 @@ def test_mxfp8_activation_recompute_matches_no_recompute(
 @requires_mxfp8
 @pytest.mark.parametrize("use_reentrant", [False, True], ids=["non_reentrant", "reentrant"])
 @pytest.mark.parametrize(
-    "unshard_rowwise_in_backward", [False, True], ids=["on_demand", "rowwise_in_backward"]
+    "unshard_all_planes_in_backward", [False, True], ids=["on_demand", "all_planes_in_backward"]
 )
 def test_mxfp8_backward_unshard_gathers_rowwise_for_recompute(
-    distributed_setup, use_reentrant, unshard_rowwise_in_backward
+    distributed_setup, use_reentrant, unshard_all_planes_in_backward
 ):
     """Checks rowwise planes are ready before a re-entered recomputation only when opted in.
 
@@ -401,7 +401,7 @@ def test_mxfp8_backward_unshard_gathers_rowwise_for_recompute(
     with te.quantized_model_init(recipe=recipe, preserve_high_precision_init_val=True):
         model = _RecomputedMLP(device, use_reentrant)
     mesh = init_device_mesh(device.type, (distributed_setup.world_size,))
-    policy = SchedulePolicy(unshard_rowwise_in_backward=unshard_rowwise_in_backward)
+    policy = SchedulePolicy(unshard_all_planes_in_backward=unshard_all_planes_in_backward)
     with fully_shard_context(device=device):
         fully_shard(model.fc1, mesh=mesh, placements=_ZERO3_PLACEMENTS, schedule_policy=policy)
         fully_shard(model.fc2, mesh=mesh, placements=_ZERO3_PLACEMENTS, schedule_policy=policy)
@@ -410,7 +410,7 @@ def test_mxfp8_backward_unshard_gathers_rowwise_for_recompute(
     # Prepended so it runs before the FSDP pre_forward that would gather on demand.
     def check_recompute(module, _args):
         if _is_recomputing():
-            assert _allocated_planes(module)[0] == unshard_rowwise_in_backward
+            assert _allocated_planes(module)[0] == unshard_all_planes_in_backward
 
     for module in (model.fc1, model.fc2):
         module.register_forward_pre_hook(check_recompute, prepend=True)
@@ -436,7 +436,7 @@ def test_mxfp8_recompute_inside_fsdp_module_matches_no_recompute(distributed_set
 
     recipe = MXFP8BlockScaling()
     mesh = init_device_mesh(device.type, (distributed_setup.world_size,))
-    policy = SchedulePolicy(unshard_rowwise_in_backward=True)
+    policy = SchedulePolicy(unshard_all_planes_in_backward=True)
 
     def build(use_reentrant):
         with te.quantized_model_init(recipe=recipe, preserve_high_precision_init_val=True):
@@ -455,10 +455,10 @@ def test_mxfp8_recompute_inside_fsdp_module_matches_no_recompute(distributed_set
 @requires_mxfp8
 @pytest.mark.parametrize("use_reentrant", [False, True], ids=["non_reentrant", "reentrant"])
 @pytest.mark.parametrize(
-    "unshard_rowwise_in_backward", [False, True], ids=["on_demand", "rowwise_in_backward"]
+    "unshard_all_planes_in_backward", [False, True], ids=["on_demand", "all_planes_in_backward"]
 )
 def test_mxfp8_backward_unshard_gathers_rowwise_for_recompute_inside_fsdp_module(
-    distributed_setup, use_reentrant, unshard_rowwise_in_backward
+    distributed_setup, use_reentrant, unshard_all_planes_in_backward
 ):
     """Checks recomputing ``proj`` inside the root fails without the opt-in.
 
@@ -473,7 +473,7 @@ def test_mxfp8_backward_unshard_gathers_rowwise_for_recompute_inside_fsdp_module
     with te.quantized_model_init(recipe=recipe, preserve_high_precision_init_val=True):
         model = _RecomputedBlockWithOwnedProj(device, use_reentrant)
     mesh = init_device_mesh(device.type, (distributed_setup.world_size,))
-    policy = SchedulePolicy(unshard_rowwise_in_backward=unshard_rowwise_in_backward)
+    policy = SchedulePolicy(unshard_all_planes_in_backward=unshard_all_planes_in_backward)
     with fully_shard_context(device=device):
         fully_shard(model, mesh=mesh, placements=_ZERO3_PLACEMENTS, schedule_policy=policy)
 
@@ -482,7 +482,7 @@ def test_mxfp8_backward_unshard_gathers_rowwise_for_recompute_inside_fsdp_module
     with te.autocast(recipe=recipe):
         output = model(x)
     loss = output.float().square().mean()
-    if not unshard_rowwise_in_backward:
+    if not unshard_all_planes_in_backward:
         with pytest.raises(Exception, match="row-scaled"):
             loss.backward()
         return
